@@ -1,0 +1,147 @@
+# Master Prompt: Django + PostgreSQL Backend for Accident-Triggered Marketing & Lead Intake Platform
+
+## 1. Project Goal & Context
+Build a high-performance Django 5.x REST API and Web Application backed by PostgreSQL. 
+This platform forms the central database and media processing engine for a 10-day POC operating in Georgia / Metro Atlanta:
+1. Ingest accident/crash incident data (including high-volume HD images and video links) from n8n / traffic feed APIs.
+2. Store incidents and process heavy crash media asynchronously (saving files to S3/Cloudflare R2 or Django Media storage).
+3. Provide a public-facing viewer Landing Page and Lead Intake Form with consent verification (TrustedForm integration).
+4. Receive Vapi AI Inbound Call Webhooks (recording, transcript, summary) and pair them with lead records.
+5. Route lead notifications via email to the human support/sales team.
+
+---
+
+## 2. Tech Stack & Dependencies
+- **Framework**: Python 3.11+, Django 5.x, Django REST Framework (DRF)
+- **Database**: PostgreSQL 16 (with `django.contrib.gis` PostGIS OR standard indexing with Lat/Long decimal fields)
+- **Storage**: `django-storages` + `boto3` (AWS S3 or Cloudflare R2 for storing crash images & videos)
+- **Background Worker**: Celery + Redis OR `django-q2` (for async downloading of large crash videos/images without blocking API calls)
+- **Form & Template**: Django HTML Templates + Tailwind CSS + TrustedForm JS Script
+- **External Integrations**: n8n (Webhooks/REST API), Vapi AI (Call Webhooks), SMTP (Email Notifications)
+
+---
+
+## 3. Database Architecture & Models
+
+Create an app named `core` with the following Django models:
+
+### A. `Incident` Model
+- `incident_id` (CharField, unique=True, primary key or indexed)
+- `source` (CharField, e.g., 'GDOT', '511_GA')
+- `incident_type` (CharField, e.g., 'Collision', 'Vehicle Fire', 'Multi-car Accident')
+- `latitude` (DecimalField, max_digits=9, decimal_places=6)
+- `longitude` (DecimalField, max_digits=9, decimal_places=6)
+- `city_area` (CharField, max_length=255)
+- `occurred_at` (DateTimeField)
+- `target_radius_miles` (IntegerField, default=5)
+- `status` (CharField: `ACTIVE`, `CAMPAIGN_TRIGGERED`, `CLOSED`, default=`ACTIVE`)
+- `created_at` (DateTimeField, auto_now_add=True)
+
+### B. `IncidentMedia` Model (For Heavy Crash Images & Videos)
+- `incident` (ForeignKey to `Incident`, related_name='media_files', on_delete=CASCADE)
+- `media_type` (CharField: `IMAGE`, `VIDEO`)
+- `source_url` (URLField, original URL from feed)
+- `file` (FileField/ImageField, uploaded to S3/Media storage under `crash_media/%Y/%m/%d/`)
+- `file_size_bytes` (BigIntegerField, null=True, blank=True)
+- `download_status` (CharField: `PENDING`, `COMPLETED`, `FAILED`, default=`PENDING`)
+- `created_at` (DateTimeField, auto_now_add=True)
+
+### C. `GeoCampaign` Model
+- `incident` (ForeignKey to `Incident`, related_name='campaigns', on_delete=CASCADE)
+- `platform` (CharField: `GOOGLE_ADS`, `META_ADS`)
+- `external_campaign_id` (CharField, max_length=255, null=True, blank=True)
+- `ad_set_or_group_id` (CharField, max_length=255, null=True, blank=True)
+- `budget_daily` (DecimalField, max_digits=8, decimal_places=2, default=50.00)
+- `status` (CharField: `PENDING`, `ACTIVE`, `PAUSED`, `FAILED`, default=`PENDING`)
+- `raw_response` (JSONField, null=True, blank=True)
+- `created_at` (DateTimeField, auto_now_add=True)
+
+### D. `FormLead` Model
+- `lead_id` (UUIDField, default=uuid.uuid4, editable=False, primary key=True)
+- `incident` (ForeignKey to `Incident`, null=True, blank=True, on_delete=SET_NULL)
+- `campaign` (ForeignKey to `GeoCampaign`, null=True, blank=True, on_delete=SET_NULL)
+- `full_name` (CharField, max_length=255)
+- `phone_number` (CharField, max_length=30)
+- `email` (EmailField, null=True, blank=True)
+- `preferred_contact` (CharField, max_length=50, default='PHONE')
+- `message` (TextField, blank=True)
+- `trustedform_cert_url` (URLField, null=True, blank=True)
+- `user_consent` (BooleanField, default=False)
+- `sent_to_support` (BooleanField, default=False)
+- `created_at` (DateTimeField, auto_now_add=True)
+
+### E. `CallLead` Model (Vapi AI Integration)
+- `vapi_call_id` (CharField, max_length=255, unique=True)
+- `caller_phone` (CharField, max_length=30)
+- `call_status` (CharField, max_length=50)
+- `duration_seconds` (IntegerField, default=0)
+- `summary` (TextField, blank=True)
+- `transcript` (TextField, blank=True)
+- `recording_url` (URLField, null=True, blank=True)
+- `sent_to_support` (BooleanField, default=False)
+- `created_at` (DateTimeField, auto_now_add=True)
+
+---
+
+## 4. API Endpoints & Webhooks
+
+Implement DRF serializers and views for the following routes:
+
+### 1. `POST /api/v1/incidents/ingest/` (Receives data from n8n / Feed)
+- **Function**: Receives JSON payload with incident details and lists of image/video URLs.
+- **Media Strategy**: 
+  - Immediately save the `Incident` record.
+  - Create `IncidentMedia` rows with `download_status='PENDING'`.
+  - Trigger an async background task (`process_incident_media_async`) to fetch image/video binary data from source URLs and stream them directly into S3/Django media storage.
+  - Return HTTP 201 Created instantly to n8n so n8n does not timeout.
+
+### 2. `POST /api/v1/webhooks/vapi/` (Vapi AI Completed Call Callback)
+- **Function**: Webhook receiver for Vapi AI `end-of-call-report` event.
+- **Behavior**:
+  - Parse `call.id`, `customer.number`, `transcript`, `summary`, `recordingUrl`, and `durationSeconds`.
+  - Create or update a `CallLead` record.
+  - Trigger email notification to support team (`support@example.com`) with the call transcript and audio recording link.
+  - Return HTTP 200 OK.
+
+### 3. `POST /api/v1/leads/form/` (Landing Page Lead Submission)
+- **Function**: Public endpoint for form submissions.
+- **Behavior**:
+  - Validate required fields (`full_name`, `phone_number`, `user_consent`).
+  - Capture `xxTrustedFormCertUrl` from form body.
+  - Save `FormLead` to PostgreSQL.
+  - Send structured HTML lead alert email to support team.
+  - Return HTTP 200/201 with success message.
+
+---
+
+## 5. Viewer Landing Page & Lead Intake Form
+Create a clean, responsive HTML view hosted by Django:
+- **Route**: `GET /claim-assistance/`
+- **Features**:
+  - Responsive layout (Tailwind CSS CDN).
+  - Prominent Call CTA pointing to the tracked Vapi AI phone number (`tel:+18005550199`).
+  - Simple Form fields: Full Name, Phone Number, Email, Short Message, TCPA Consent Checkbox.
+  - **TrustedForm Integration**: Embed TrustedForm script tag in `<head>`, with `<input type="hidden" name="xxTrustedFormCertUrl" id="xxTrustedFormCertUrl_0">`.
+  - Post submission: Show inline thank-you message and trigger background email dispatch.
+
+---
+
+## 6. Email Handoff Service
+Write a Django service function `send_lead_handoff_email(lead_instance)`:
+- Renders an HTML email template containing:
+  - Lead Type (Form vs Vapi AI Call)
+  - Contact Details (Name, Phone, Email)
+  - Incident Context & Location (if linked)
+  - TrustedForm Certificate URL (for Form Leads)
+  - Summary & Recording Link (for Call Leads)
+- Sends email via `django.core.mail.send_mail` to configured `SUPPORT_EMAIL_RECIPIENTS`.
+
+---
+
+## 7. Delivery Deliverables Required
+Please generate:
+1. `models.py` with all 5 models defined.
+2. `serializers.py` & `views.py` handling all 3 API endpoints.
+3. `tasks.py` for Celery/Django-Q async media processing.
+4. `landing_page.html` template with form and TrustedForm script.
+5. `services.py` for email alerts and n8n webhook triggers.

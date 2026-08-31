@@ -1,0 +1,47 @@
+# 10-Day POC: Automated Digital Marketing & Lead Intake Platform (GCrashAware)
+
+Simple implementation plan for Georgia / Metro Atlanta accident-triggered geo campaigns, lead forms, Vapi AI calls, and human handoff.
+
+## POC Goal
+Build one reliable end-to-end demonstration in 10 days: detect a qualifying incident/location, create or update a 5–10 mile geo-targeted campaign in Google Ads and Meta Ads, capture inbound form/call leads, send form details to the support team, route calls to Vapi AI, record and transcribe calls, and hand the lead to a human team.
+
+---
+
+## 1. Keep the POC Small
+- The POC should prove the business workflow, not attempt to build a full production marketing platform. Use managed services and simple APIs so the team can finish within 10 days.
+- Use one primary incident source for the demo (GDOT/511 or another permitted traffic feed). Add a second source only if integration is easy.
+- Use n8n as the single automation/orchestration layer.
+- Use Airtable/Local SQLite for database.
+- Use one landing page with one lead form and one tracked phone number.
+- Use Google Ads and Meta Ads only with predefined campaign templates.
+- Use Vapi AI for inbound calls, call recording, transcript, summary, and webhook callback.
+- Use email as the final support/sales handoff.
+
+> **Important Targeting Boundary:**
+> The incident feed is used strictly to choose geographic areas for contextual advertising. Do not scrape or identify accident victims as person-level leads. A person becomes a lead only after voluntarily submitting the form, calling, or otherwise contacting the business.
+
+---
+
+## 2. Simplified POC Architecture & Pipeline
+`GDOT / 511 Incident Feed` -> `n8n Automation` -> `5-10 Mile Geo Target Calculation` -> `Google Ads + Meta Ads Launch` -> `Landing Page & Tracked Phone Intake` -> `Web Form Lead & Vapi AI Voice Call` -> `Support/Sales Email Handoff`
+
+---
+
+## 3. Core Components to Build
+1. **Live Incident Poller & Geo Target Engine**:
+   - Ingests Georgia / Metro Atlanta feeds (GDOT NaviGAtor 511 / simulated realistic highway incidents on I-85, I-285, I-75, GA-400).
+   - Computes 5-10 mile dynamic geofences and deduplicates active incidents.
+2. **Google Ads & Meta Ads Campaign Automation**:
+   - Triggers radius-targeted ad sets, dynamic headline generation, budget limits, and status tracking.
+3. **Georgia Legal & Roadside Assistance Landing Page**:
+   - Modern, high-converting responsive landing page with instant lead intake.
+   - TCPA compliance & TrustedForm certificate generator.
+   - Click-to-call direct trigger for Vapi AI agent.
+4. **Vapi AI Inbound Voice Agent & Web Call Simulator**:
+   - Voice assistant script with disclosure, qualification, audio playback, transcription, and post-call webhook dispatch.
+5. **n8n Orchestration & Workflows**:
+   - Ready-to-use n8n workflow blueprints for incident polling, ad triggers, form leads, and Vapi call callbacks.
+6. **Support / Sales Lead Management & Human Handoff**:
+   - Real-time lead inbox, simulated email alerts to support@firm.com, and Airtable synchronization.
+7. **POC Mission Control Dashboard & End-to-End Demo Runner**:
+   - Single-click interactive test simulator executing the 10-day POC acceptance checklist in real time.

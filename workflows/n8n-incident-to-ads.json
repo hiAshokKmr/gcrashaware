@@ -1,0 +1,114 @@
+{
+  "name": "GCrashAware - Incident Poller to Geo Ads Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "node-cron-poller",
+      "name": "Schedule: Poll GDOT 511 NaviGAtor Feed",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/incidents/simulate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"source\": \"GDOT_511_NaviGAtor\"}"
+      },
+      "id": "node-http-incident",
+      "name": "Fetch / Ingest Active Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate 5-10 mile dynamic geofence radius for Georgia corridor\nconst incident = $input.first().json;\nconst radiusMiles = incident.radius_miles || 7.5;\nconst lat = incident.lat || 33.9189;\nconst lng = incident.lng || -84.2542;\n\nconst latDelta = radiusMiles / 69.0;\nconst lngDelta = radiusMiles / (69.0 * Math.cos(lat * (Math.PI / 180)));\n\nreturn [{\n  json: {\n    incident_id: incident.id,\n    corridor: incident.corridor,\n    highway: incident.highway,\n    severity: incident.severity,\n    center: { lat, lng },\n    radiusMiles,\n    radiusMeters: Math.round(radiusMiles * 1609.34),\n    bbox: {\n      minLat: Number((lat - latDelta).toFixed(5)),\n      maxLat: Number((lat + latDelta).toFixed(5)),\n      minLng: Number((lng - lngDelta).toFixed(5)),\n      maxLng: Number((lng + lngDelta).toFixed(5))\n    }\n  }\n}];"
+      },
+      "id": "node-code-geofence",
+      "name": "Calculate 7.5-Mile Geofence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/campaigns",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"incident_id\": \"{{ $json.incident_id }}\",\n  \"platform\": \"Google Ads\",\n  \"radius_miles\": {{ $json.radiusMiles }},\n  \"target_lat\": {{ $json.center.lat }},\n  \"target_lng\": {{ $json.center.lng }}\n}"
+      },
+      "id": "node-google-ads",
+      "name": "Launch Google Ads Radius Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/campaigns",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"incident_id\": \"{{ $json.incident_id }}\",\n  \"platform\": \"Meta Ads\",\n  \"radius_miles\": {{ $json.radiusMiles }},\n  \"target_lat\": {{ $json.center.lat }},\n  \"target_lng\": {{ $json.center.lng }}\n}"
+      },
+      "id": "node-meta-ads",
+      "name": "Launch Meta Ads Radius Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [920, 400]
+    }
+  ],
+  "connections": {
+    "Schedule: Poll GDOT 511 NaviGAtor Feed": {
+      "main": [
+        [
+          {
+            "node": "Fetch / Ingest Active Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch / Ingest Active Incident": {
+      "main": [
+        [
+          {
+            "node": "Calculate 7.5-Mile Geofence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate 7.5-Mile Geofence": {
+      "main": [
+        [
+          {
+            "node": "Launch Google Ads Radius Campaign",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Launch Meta Ads Radius Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

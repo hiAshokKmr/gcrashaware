@@ -1,0 +1,21 @@
+{
+  "name": "gcrashaware-poc",
+  "version": "1.0.0",
+  "description": "GCrashAware 10-Day POC: Georgia Traffic Incident Triggered Marketing, Lead Intake & Vapi AI Voice Agent Platform",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node src/tests/api.test.js"
+  },
+  "keywords": ["geotargeting", "gdot", "vapi-ai", "google-ads", "meta-ads", "lead-intake", "n8n"],
+  "author": "GCrashAware Team",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.17.1"
+  }
+}

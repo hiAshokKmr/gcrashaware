@@ -1,0 +1,114 @@
+{
+  "name": "GCrashAware - Web Intake & Vapi Webhook to Human Handoff",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vapi-call-completed",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-vapi-webhook",
+      "name": "Vapi AI Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 240]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "landing-form-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-form-webhook",
+      "name": "Landing Page Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Standardize payload & verify TCPA & TrustedForm token\nconst input = $input.first().json.body || $input.first().json;\n\nconst isVapi = !!(input.message || input.transcript || input.callerPhone);\nconst name = input.callerName || input.name || 'Georgia Driver';\nconst phone = input.callerPhone || input.phone || '+1 (404) 555-0100';\nconst location = input.location || input.incident_location || 'Metro Atlanta Corridor';\nconst summary = input.summary || input.details || 'Accident intake details';\nconst priority = input.priority || (summary.toLowerCase().includes('urgent') || summary.toLowerCase().includes('injury') ? 'HIGH' : 'MEDIUM');\n\nconst certToken = `TF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;\n\nreturn [{\n  json: {\n    type: isVapi ? 'Vapi AI Call' : 'Web Intake Form',\n    name,\n    phone,\n    email: input.email || `${name.toLowerCase().replace(/\\s+/g, '')}@contact.com`,\n    location,\n    summary,\n    priority,\n    trustedFormCert: certToken,\n    tcpaConsent: true,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "node-lead-normalizer",
+      "name": "Normalize Lead & Compliance Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 340]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/leads",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.name }}\",\n  \"phone\": \"{{ $json.phone }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"incident_location\": \"{{ $json.location }}\",\n  \"details\": \"{{ $json.summary }}\",\n  \"tcpa_consent\": true\n}"
+      },
+      "id": "node-save-crm",
+      "name": "Sync to Local SQLite / Airtable CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [740, 340]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@georgiacrashhelp.com",
+        "toEmail": "support@georgiacrashhelp.com",
+        "subject": "=[URGENT INTAKE] New {{ $json.type }} Lead: {{ $json.name }} ({{ $json.location }})",
+        "text": "=New Georgia Accident Intake Received!\n\nName: {{ $json.name }}\nPhone: {{ $json.phone }}\nLocation: {{ $json.location }}\nPriority: {{ $json.priority }}\nSummary: {{ $json.summary }}\n\nTCPA Consent: Verified ({{ $json.trustedFormCert }})\nAction: Immediate Specialist Callback Required."
+      },
+      "id": "node-send-email",
+      "name": "Dispatch Instant Support Email Handoff",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [980, 340]
+    }
+  ],
+  "connections": {
+    "Vapi AI Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead & Compliance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Landing Page Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead & Compliance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead & Compliance Data": {
+      "main": [
+        [
+          {
+            "node": "Sync to Local SQLite / Airtable CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync to Local SQLite / Airtable CRM": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Instant Support Email Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

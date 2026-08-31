@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Georgia Accident Rapid Response & Legal Assistance | 24/7 Hotline</title>
+  <meta name="description" content="Involved in a collision on Georgia highways? Connect with Georgia roadside dispatch and top-rated injury advocates within minutes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/landing.css">
+</head>
+<body>
+
+  <!-- Top Alert Banner -->
+  <div class="top-bar">
+    <div class="pulse-dot"></div>
+    <span>GEORGIA METRO ATLANTA INCIDENT RESPONSE: 24/7 FREE INTAKE & CASE EVALUATION</span>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header>
+    <div class="logo-container">
+      <span class="logo-badge">GA 511</span>
+      <div class="logo-text">
+        <h1>Georgia Incident Relief</h1>
+        <p>Roadside Assistance & Legal Advocacy</p>
+      </div>
+    </div>
+
+    <div class="header-cta">
+      <a href="/" class="nav-link">Mission Control</a>
+      <a href="tel:+14048912345" id="headerPhoneBtn" class="tracked-phone-btn" onclick="openCallModal(event)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        <span>+1 (404) 891-2345</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero & Intake Form Section -->
+  <main class="hero-section">
+    <!-- Left Hero Information -->
+    <section class="hero-content">
+      <div class="badge-tag">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span>Active Incident Rapid Intake (GDOT NaviGAtor Corridor)</span>
+      </div>
+
+      <h1 class="hero-title">
+        Involved in an Accident on <span>Georgia Corridors?</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Do not navigate the aftermath of an Atlanta highway collision alone. Speak with our 24/7 AI intake assistant or connect immediately with a Georgia personal injury advocate and verified towing service.
+      </p>
+
+      <div class="trust-bullets">
+        <div class="trust-item">
+          <div class="check-icon">✓</div>
+          <span><strong>Zero Out-of-Pocket Cost:</strong> Free consultation, no fees unless you recover.</span>
+        </div>
+        <div class="trust-item">
+          <div class="check-icon">✓</div>
+          <span><strong>Rapid 3-Minute Response:</strong> Immediate coordinator assigned to protect evidence.</span>
+        </div>
+        <div class="trust-item">
+          <div class="check-icon">✓</div>
+          <span><strong>Georgia Jurisdiction Experts:</strong> Handling I-85, I-285, I-75, I-20, & GA-400 collisions.</span>
+        </div>
+      </div>
+
+      <!-- Live Corridor Alert Feed -->
+      <div class="live-feed-ticker" id="corridorTicker">
+        <div class="ticker-icon">📍</div>
+        <div class="ticker-text">
+          <p id="tickerLocation">Monitoring Metro Atlanta: I-85, I-285, I-75 Corridors</p>
+          <span>Real-time GDOT 511 incident synchronization active</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Web Lead Intake Form Card -->
+    <section class="form-card">
+      <div class="form-header">
+        <h2>Start Instant Case Intake</h2>
+        <p>Get immediate guidance and request priority phone callback.</p>
+      </div>
+
+      <div id="formSuccessBanner" class="success-banner">
+        <strong>✓ Request Submitted Successfully!</strong><br>
+        Your case file has been prioritized. Our Georgia intake specialist will call you in under 3 minutes.
+      </div>
+
+      <form id="leadIntakeForm" onsubmit="submitLeadForm(event)">
+        <div class="form-group">
+          <label for="fullName">Your Full Name *</label>
+          <input type="text" id="fullName" name="name" class="form-input" placeholder="e.g. Marcus Vance" required>
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone Number *</label>
+          <input type="tel" id="phone" name="phone" class="form-input" placeholder="+1 (404) 555-0199" required>
+        </div>
+
+        <div class="form-group">
+          <label for="incidentLocation">Accident Highway / Location *</label>
+          <select id="incidentLocation" name="incident_location" class="form-select" required>
+            <option value="I-85 North near Spaghetti Junction">I-85 North (Spaghetti Junction / Gwinnett)</option>
+            <option value="I-85 South (Airport / College Park)">I-85 South (Airport / College Park)</option>
+            <option value="I-285 Perimeter West (Cobb / Fulton)">I-285 Perimeter West</option>
+            <option value="I-285 Perimeter East (DeKalb / Tucker)">I-285 Perimeter East</option>
+            <option value="I-75 North (Cobb / Marietta)">I-75 North (Marietta)</option>
+            <option value="I-75 South (Clayton / Morrow)">I-75 South (Morrow)</option>
+            <option value="GA-400 North (Sandy Springs / Alpharetta)">GA-400 North</option>
+            <option value="Downtown Connector (I-75/85 Midtown)">Downtown Connector (Midtown Atlanta)</option>
+            <option value="Other Metro Atlanta Location">Other Georgia Location</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="details">Brief Incident Details (Optional)</label>
+          <textarea id="details" name="details" rows="2" class="form-textarea" placeholder="e.g. Rear-ended on exit ramp, vehicle towed, seeking legal advice..."></textarea>
+        </div>
+
+        <div class="tcpa-box">
+          <input type="checkbox" id="tcpaConsent" name="tcpa_consent" checked required>
+          <label for="tcpaConsent">
+            By checking this box, I provide express consent to be contacted via phone call, SMS, or automated voice assistance regarding this incident in accordance with TCPA guidelines.
+          </label>
+        </div>
+
+        <button type="submit" id="submitFormBtn" class="submit-btn">
+          <span>Connect With Specialist</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+
+        <div class="trustedform-badge">
+          <svg class="lock-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>TrustedForm™ & TCPA Compliant Encryption Certificate Active</span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Interactive Vapi AI Call Modal -->
+  <div id="callModal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="close-modal-btn" onclick="closeCallModal()">&times;</button>
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">📞</div>
+      <h3 style="font-size: 1.3rem; margin-bottom: 8px;">Connecting to Vapi AI Assistant</h3>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+        Sarah (Georgia Incident Intake Assistant) is standing by on recorded line <strong>+1 (404) 891-2345</strong>.
+      </p>
+
+      <div style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 20px; text-align: left; font-size: 0.85rem;">
+        <div style="color: var(--accent-blue); font-weight: 600; margin-bottom: 4px;">Live Assistant Disclosure:</div>
+        <p style="color: var(--text-secondary);">"Thank you for calling Georgia Incident Support. My name is Sarah. Are you or anyone at the scene in need of emergency medical attention?"</p>
+      </div>
+
+      <button onclick="startSimulatedVoiceCall()" class="submit-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff;">
+        <span>Launch Voice Intake Simulator</span>
+      </button>
+
+      <p style="margin-top: 14px; font-size: 0.78rem; color: var(--text-muted);">
+        Calls are transcribed, summarized, and instantly dispatched to the human legal support desk.
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/landing.js"></script>
+</body>
+</html>

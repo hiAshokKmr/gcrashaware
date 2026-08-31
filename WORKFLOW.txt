@@ -1,0 +1,319 @@
+================================================================================
+           GCRASHAWARE: END-TO-END WORKFLOW, ARCHITECTURE & DATA MAP
+================================================================================
+
+1. SYSTEM WORKFLOW & ARCHITECTURE PIPELINE
+--------------------------------------------------------------------------------
+The platform operates as an automated accident-triggered contextual marketing, 
+intake, and support handoff engine for Georgia / Metro Atlanta highway corridors:
+
+[ Traffic Feed / n8n ]
+        │
+        ▼ (POST /api/v1/incidents/ingest/)
+┌────────────────────────────────────────────────────────┐
+│ 1. Incident Ingestion & Async Media Queue              │
+│    - Saves `Incident` record                           │
+│    - Creates `IncidentMedia` (Images/Videos as PENDING) │
+│    - Celery task downloads media files directly to S3  │
+└──────────────────────────────────┬─────────────────────┘
+                                   │
+                                   ▼ (Async Task / n8n Webhook)
+┌────────────────────────────────────────────────────────┐
+│ 2. Dynamic 5-10 Mile Geo-Targeted Campaigns            │
+│    - Calculates corridor geofence bounding box        │
+│    - Deploys `GeoCampaign` (Google Ads + Meta Ads)     │
+└──────────────────────────────────┬─────────────────────┘
+                                   │
+                                   ▼ (Consumer Clicks Ad or Dials Number)
+┌────────────────────────────────────────────────────────┐
+│ 3. Multi-Channel Lead Intake Routing                   │
+│                                                        │
+│   A. Web Intake Landing Page (/landing/)               │
+│      - Voluntary form submission                       │
+│      - Generates TrustedForm token & TCPA consent      │
+│      - POST /api/v1/leads/form/ -> Creates `FormLead`  │
+│                                                        │
+│   B. Inbound Voice Call (+1-800-555-0199)              │
+│      - Handled by Sarah (Vapi AI Voice Assistant)      │
+│      - Real-time safety check & dialogue transcription │
+│      - POST /api/v1/webhooks/vapi/ -> `CallLead`       │
+└──────────────────────────────────┬─────────────────────┘
+                                   │
+                                   ▼ (Instant Dispatch)
+┌────────────────────────────────────────────────────────┐
+│ 4. Support Team Email Handoff & CRM Synchronization   │
+│    - Dispatches rich HTML alert email to support team  │
+│    - Synchronizes lead in Django Admin & Mission Ctrl  │
+└────────────────────────────────────────────────────────┘
+
+
+================================================================================
+2. DATABASE MODELS & ENTITY RELATIONSHIPS (ERD)
+================================================================================
+
+┌────────────────────────────────────────────────────────┐
+│                      Incident                          │
+│  (Primary collision & geographic anchor record)        │
+└───────────────┬────────────────────────┬───────────────┘
+                │ 1                      │ 1
+                │                        │
+                │ *                      │ *
+┌───────────────▼────────┐      ┌────────▼───────────────┐
+│     IncidentMedia      │      │      GeoCampaign       │
+│ (Crash photos/videos)  │      │ (Google/Meta Ad sets)  │
+└────────────────────────┘      └────────┬───────────────┘
+                                         │ 1
+                                         │
+                                         │ *
+                                ┌────────▼───────────────┐
+                                │        FormLead        │
+                                │ (Web intake & consent) │
+                                └────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│                      CallLead                          │
+│ (Independent inbound Vapi AI voice session record)     │
+└────────────────────────────────────────────────────────┘
+
+
+MODEL 1: Incident
+--------------------------------------------------------------------------------
+- Description: Represents an accident detected along Georgia highway corridors.
+- Attributes:
+  * incident_id         (CharField, Primary Key) : External unique ID (e.g., "INC-GA-85-20260831-01")
+  * source              (CharField)              : Source feed ('GDOT', '511_GA', 'NaviGAtor')
+  * incident_type       (CharField)              : 'Collision', 'Vehicle Fire', 'Multi-car Pileup'
+  * latitude            (DecimalField 9,6)       : GPS Latitude (e.g., 33.918900)
+  * longitude           (DecimalField 9,6)       : GPS Longitude (e.g., -84.254200)
+  * city_area           (CharField 255)          : Corridor (e.g., "I-85 North near Spaghetti Junction")
+  * occurred_at         (DateTimeField)          : Time accident was reported
+  * target_radius_miles (IntegerField)           : Dynamic ad radius (5 to 10 miles, default: 5)
+  * status              (CharField)              : 'ACTIVE', 'CAMPAIGN_TRIGGERED', 'CLOSED'
+  * created_at          (DateTimeField)          : Timestamp record was created
+- Connected To:
+  * `IncidentMedia` (One-to-Many via `media_files`)
+  * `GeoCampaign`   (One-to-Many via `campaigns`)
+  * `FormLead`      (One-to-Many via `form_leads`)
+
+
+MODEL 2: IncidentMedia
+--------------------------------------------------------------------------------
+- Description: Heavy visual crash assets (traffic camera photos, video streams) processed via Celery.
+- Attributes:
+  * id                  (BigAutoField, Primary Key) : Auto-increment ID
+  * incident            (ForeignKey -> Incident) : Linked Incident parent (CASCADE on delete)
+  * media_type          (CharField)              : 'IMAGE' or 'VIDEO'
+  * source_url          (URLField 1000)          : Original public stream / photo URL
+  * file                (FileField)              : Stored file path in S3/Django media storage
+  * file_size_bytes     (BigIntegerField, null)  : Size of downloaded binary file in bytes
+  * download_status     (CharField)              : 'PENDING', 'DOWNLOADING', 'COMPLETED', 'FAILED'
+  * error_message       (TextField, null, blank) : Network error details if download failed
+  * created_at          (DateTimeField)          : Upload timestamp
+- Connected To:
+  * `Incident` (Many-to-One via `incident`)
+
+
+MODEL 3: GeoCampaign
+--------------------------------------------------------------------------------
+- Description: Dynamic geo-radius ad campaign launched across Google Ads or Meta Ads.
+- Attributes:
+  * id                   (BigAutoField, Primary Key): Auto-increment ID
+  * incident             (ForeignKey -> Incident): Linked Incident (CASCADE on delete)
+  * platform             (CharField)             : 'GOOGLE_ADS' or 'META_ADS'
+  * external_campaign_id (CharField 255, null)   : Ad network campaign ID (e.g., "gads_98234123")
+  * ad_set_or_group_id   (CharField 255, null)   : Ad set / ad group ID
+  * budget_daily         (DecimalField 8,2)      : Daily budget in USD (e.g., 75.00)
+  * status               (CharField)             : 'PENDING', 'ACTIVE', 'PAUSED', 'FAILED'
+  * raw_response         (JSONField, null)       : Raw JSON payload returned from Ad API
+  * created_at           (DateTimeField)         : Deployment timestamp
+- Connected To:
+  * `Incident` (Many-to-One via `incident`)
+  * `FormLead` (One-to-Many via `form_leads`)
+
+
+MODEL 4: FormLead
+--------------------------------------------------------------------------------
+- Description: Voluntary web lead intake with TCPA consent and TrustedForm certification.
+- Attributes:
+  * lead_id              (UUIDField, Primary Key): Unique UUID (e.g., "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d")
+  * incident             (ForeignKey -> Incident): Optional linked incident (SET_NULL on delete)
+  * campaign             (ForeignKey -> GeoCampaign): Optional linked ad campaign (SET_NULL on delete)
+  * full_name            (CharField 255)         : Consumer name (e.g., "Marcus Vance")
+  * phone_number         (CharField 30)          : Consumer phone (e.g., "+1 (404) 555-8910")
+  * email                (EmailField, null)      : Consumer email (e.g., "marcus.vance@gmail.com")
+  * preferred_contact    (CharField 50)          : 'PHONE', 'SMS', or 'EMAIL'
+  * message              (TextField, blank)      : Details on collision damage and legal needs
+  * trustedform_cert_url (URLField 1000, null)   : TrustedForm certificate URL for TCPA defense
+  * user_consent         (BooleanField)          : True/False explicit consent acknowledgment
+  * sent_to_support      (BooleanField)          : Flag indicating email notification dispatch
+  * created_at           (DateTimeField)         : Timestamp of submission
+- Connected To:
+  * `Incident`    (Many-to-One via `incident`)
+  * `GeoCampaign` (Many-to-One via `campaign`)
+
+
+MODEL 5: CallLead
+--------------------------------------------------------------------------------
+- Description: Inbound voice call session handled by Vapi AI Voice Agent Sarah.
+- Attributes:
+  * id                  (BigAutoField, Primary Key) : Auto-increment ID
+  * vapi_call_id        (CharField 255, Unique)  : Vapi call session ID (e.g., "vapi_call_98234123")
+  * caller_phone        (CharField 30)           : Caller telephone number
+  * call_status         (CharField 50)           : 'COMPLETED', 'TRANSFERRED', 'DROPPED'
+  * duration_seconds    (IntegerField)           : Call duration in seconds (e.g., 142)
+  * summary             (TextField, blank)       : AI summary of injuries, damage & triage
+  * transcript          (TextField, blank)       : Complete multi-turn dialogue transcript
+  * recording_url       (URLField 1000, null)    : MP3 audio recording download URL
+  * priority            (CharField 20)           : 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  * sent_to_support     (BooleanField)           : Flag indicating email notification dispatch
+  * created_at          (DateTimeField)          : Call initiation timestamp
+
+
+================================================================================
+3. WEBSITE CONNECTIVITY & URL ROUTING MAP
+================================================================================
+
+A. Public & Admin Web Pages
+--------------------------------------------------------------------------------
+1. http://localhost:8000/
+   - Route Name : `core:dashboard`
+   - View       : `core.views.dashboard_view`
+   - Template   : `core/templates/core/dashboard.html`
+   - Features   : Atlanta highway radar canvas, live active ads stream, Vapi AI tester, 
+                  CRM lead inbox table, and 1-Click Acceptance Demo runner.
+
+2. http://localhost:8000/landing/
+   - Route Name : `core:landing_page`
+   - View       : `core.views.landing_page_view`
+   - Template   : `core/templates/core/landing_page.html`
+   - Features   : Georgia Legal & Roadside Assistance intake, TrustedForm JS script tag, 
+                  TCPA consent checkbox, and click-to-call direct dial (+1-800-555-0199).
+
+3. http://localhost:8000/admin/
+   - Route Name : `admin:index`
+   - Features   : Full Django Admin portal with inlines, search, filters, and media statuses.
+
+B. REST API Endpoints & Webhooks
+--------------------------------------------------------------------------------
+1. POST /api/v1/incidents/ingest/
+   - View       : `core.views.IncidentIngestView`
+   - Input      : Incident JSON payload with nested `media` URLs array
+   - Processing : Saves `Incident`, inserts `IncidentMedia` rows, queues Celery worker task
+   - Response   : HTTP 201 Created
+
+2. POST /api/v1/webhooks/vapi/
+   - View       : `core.views.VapiWebhookView`
+   - Input      : Vapi AI end-of-call report payload
+   - Processing : Parses transcript, audio MP3 URL & summary, saves `CallLead`, sends email
+   - Response   : HTTP 200 OK
+
+3. POST /api/v1/leads/form/
+   - View       : `core.views.FormLeadIntakeView`
+   - Input      : Form submission with `user_consent` and `xxTrustedFormCertUrl`
+   - Processing : Saves `FormLead`, dispatches rich HTML email alert to support team
+   - Response   : HTTP 201 Created
+
+
+================================================================================
+4. COMPLETE DUMMY DATA SAMPLES
+================================================================================
+
+--- DUMMY DATA: Incident 1 (I-85 North / Spaghetti Junction) ---
+{
+  "incident_id": "INC-GA-85-20260831-01",
+  "source": "GDOT_NaviGAtor_511",
+  "incident_type": "Multi-car Collision",
+  "latitude": 33.918900,
+  "longitude": -84.254200,
+  "city_area": "I-85 North near Spaghetti Junction (I-285 Interchange)",
+  "occurred_at": "2026-08-31T06:30:00Z",
+  "target_radius_miles": 7,
+  "status": "CAMPAIGN_TRIGGERED",
+  "media": [
+    {
+      "media_type": "IMAGE",
+      "source_url": "https://images.unsplash.com/photo-1590362891991-f776e747a588?w=800"
+    },
+    {
+      "media_type": "VIDEO",
+      "source_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+    }
+  ]
+}
+
+--- DUMMY DATA: Incident 2 (I-75 South / Morrow Exit 233) ---
+{
+  "incident_id": "INC-GA-75-20260831-02",
+  "source": "GDOT_NaviGAtor_511",
+  "incident_type": "Hydroplane Incident on Exit Ramp",
+  "latitude": 33.584300,
+  "longitude": -84.339600,
+  "city_area": "I-75 South near Exit 233 (Morrow / Clayton County)",
+  "occurred_at": "2026-08-31T07:15:00Z",
+  "target_radius_miles": 6,
+  "status": "ACTIVE",
+  "media": [
+    {
+      "media_type": "IMAGE",
+      "source_url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800"
+    }
+  ]
+}
+
+--- DUMMY DATA: GeoCampaign 1 (Google Ads Search) ---
+{
+  "incident_id": "INC-GA-85-20260831-01",
+  "platform": "GOOGLE_ADS",
+  "external_campaign_id": "gads_ga85_7mi_98234",
+  "ad_set_or_group_id": "grp_accident_relief_01",
+  "budget_daily": 150.00,
+  "status": "ACTIVE",
+  "raw_response": {
+    "headline": "I-85 Incident Assistance - 24/7 Roadside & Legal Intake",
+    "target_radius": "7.5 miles around (33.9189, -84.2542)",
+    "clicks": 14,
+    "impressions": 185
+  }
+}
+
+--- DUMMY DATA: GeoCampaign 2 (Meta Ads Feed) ---
+{
+  "incident_id": "INC-GA-85-20260831-01",
+  "platform": "META_ADS",
+  "external_campaign_id": "meta_ga85_7mi_11209",
+  "ad_set_or_group_id": "adset_spaghetti_jct_01",
+  "budget_daily": 125.00,
+  "status": "ACTIVE",
+  "raw_response": {
+    "headline": "Accident Relief for I-85 / I-285 Motorists",
+    "call_to_action": "CALL_NOW",
+    "clicks": 28,
+    "impressions": 490
+  }
+}
+
+--- DUMMY DATA: FormLead (Web Intake with TrustedForm) ---
+{
+  "full_name": "Marcus Vance",
+  "phone_number": "+1 (404) 555-8910",
+  "email": "marcus.vance@gmail.com",
+  "preferred_contact": "PHONE",
+  "message": "Rear-ended by box truck on I-85 North near exit 95. Trunk smashed in, seeking injury representation and approved tow yard coordination.",
+  "trustedform_cert_url": "https://cert.trustedform.com/7b3f91a2e4c0d18f09234bcf90123",
+  "user_consent": true,
+  "sent_to_support": true
+}
+
+--- DUMMY DATA: CallLead (Vapi AI Inbound Session) ---
+{
+  "vapi_call_id": "vapi_session_88192039",
+  "caller_phone": "+1 (770) 555-3412",
+  "call_status": "COMPLETED",
+  "duration_seconds": 138,
+  "priority": "HIGH",
+  "summary": "Multi-car collision on I-75 South near Exit 233. Paramedics on scene evaluating minor wrist sprain. Vehicle non-drivable. Requested urgent legal consult before speaking with insurance adjusters.",
+  "transcript": "Assistant (Sarah): Thank you for calling Georgia Incident Support. My name is Sarah. I'm an AI assistant on a recorded line. Is anyone at the scene in need of emergency medical attention?\nCaller: No, paramedics are already here checking our wrists. I was rear-ended on I-75 Exit 233.\nAssistant: I am glad you are being looked after. Did law enforcement arrive?\nCaller: Yes, GSP is writing up the incident report right now. My car cannot be driven.\nAssistant: Understood. I am logging your case on I-75 South. I am dispatching your intake to our senior legal and roadside coordinator right away.\nCaller: Thank you, please have them call this cell phone.",
+  "recording_url": "https://vapi-recordings.s3.amazonaws.com/calls/vapi_session_88192039.mp3",
+  "sent_to_support": true
+}
+================================================================================
