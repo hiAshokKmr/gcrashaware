@@ -102,6 +102,8 @@ else:
         }
     }
 
+
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -110,6 +112,7 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
