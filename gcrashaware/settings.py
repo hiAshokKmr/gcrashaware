@@ -15,6 +15,12 @@ ALLOWED_HOSTS = [
     '.now.sh'
 ]
 
+# Vercel Trusted Origins for CSRF Form Submissions
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.vercel.app',
+    'https://*.now.sh'
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
