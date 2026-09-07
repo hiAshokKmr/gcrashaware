@@ -42,8 +42,29 @@ class FormLeadAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'phone_number', 'email')
 
 
+from django.utils.html import format_html
+
 @admin.register(CallLead)
 class CallLeadAdmin(admin.ModelAdmin):
-    list_display = ('vapi_call_id', 'caller_phone', 'priority', 'call_status', 'duration_seconds', 'sent_to_support', 'created_at')
+    list_display = ('vapi_call_id', 'caller_phone', 'priority', 'call_status', 'duration_seconds', 'audio_player', 'sent_to_support', 'created_at')
     list_filter = ('priority', 'call_status', 'sent_to_support')
-    search_fields = ('vapi_call_id', 'caller_phone', 'summary')
+    search_fields = ('vapi_call_id', 'caller_phone', 'summary', 'transcript')
+    readonly_fields = ('audio_player_preview', 'created_at')
+
+    def audio_player(self, obj):
+        if obj.recording_url:
+            return format_html(
+                '<a href="{}" target="_blank" style="font-weight:bold; color:#0284c7;">▶ Open Recording ↗</a>',
+                obj.recording_url
+            )
+        return "No Recording"
+    audio_player.short_description = "Audio Recording"
+
+    def audio_player_preview(self, obj):
+        if obj.recording_url:
+            return format_html(
+                '<audio controls style="width: 100%; max-width: 400px;"><source src="{}" type="audio/mpeg"><source src="{}" type="audio/wav">Your browser does not support audio element.</audio>',
+                obj.recording_url, obj.recording_url
+            )
+        return "No audio recording URL available."
+    audio_player_preview.short_description = "Listen to Call Audio"

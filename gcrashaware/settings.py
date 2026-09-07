@@ -125,9 +125,16 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 # Email & Notifications Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'alerts@georgiacrashhelp.com')
-SUPPORT_EMAIL_RECIPIENTS = [os.environ.get('SUPPORT_EMAIL', 'support@georgiacrashhelp.com')]
+# Email Configuration (Gmail SMTP Live Dispatch)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'askashokkumar.r@gmail.com'
+EMAIL_HOST_PASSWORD = 'udcrrrpgbxzurzht'
+DEFAULT_FROM_EMAIL = 'GCrashAware Incident Alert <askashokkumar.r@gmail.com>'
+SUPPORT_EMAIL_RECIPIENTS = ['askashokkumar.r@gmail.com']
 
 # n8n Webhook Integration
 N8N_INCIDENT_WEBHOOK_URL = os.environ.get('N8N_INCIDENT_WEBHOOK_URL', 'http://localhost:5678/webhook/incident-ingest')
+

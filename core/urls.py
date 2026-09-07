@@ -3,17 +3,14 @@ from .views import (
     IncidentIngestView,
     VapiWebhookView,
     FormLeadIntakeView,
-    dashboard_view,
     landing_page_view
 )
 
 app_name = 'core'
 
 urlpatterns = [
-    # GCrashAware Mission Control Dashboard
-    path('', dashboard_view, name='dashboard'),
-
-    # Public Georgia Roadside Legal Intake Landing Page
+    # Public Georgia Roadside Legal Intake Landing Page (Form + Vapi AI Voice)
+    path('', landing_page_view, name='home'),
     path('landing/', landing_page_view, name='landing_page'),
 
     # REST API Endpoints & Webhooks
