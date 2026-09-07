@@ -11,9 +11,11 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
+    'testserver',
     '.vercel.app',
     '.now.sh'
 ]
+
 
 # # Vercel Trusted Origins for CSRF Form Submissions
 CSRF_TRUSTED_ORIGINS = [

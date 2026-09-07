@@ -11,7 +11,7 @@ from datetime import timedelta
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gcrashaware.settings')
 django.setup()
 
-from core.models import Incident, IncidentMedia, GeoCampaign, FormLead, CallLead
+from core.models import Incident, IncidentMedia, GeoCampaign, FormLead, CallLead, WorkflowStatus
 
 
 def seed():
@@ -142,7 +142,73 @@ def seed():
     )
     print(f"[+] Created CallLead: {call1.caller_phone} (Session: {call1.vapi_call_id})")
 
-    print("\n[SUCCESS] Seeding completed successfully! All 5 models populated.")
+    # 6. Create WorkflowStatus Logs for End-to-End Pipeline Visibility
+    WorkflowStatus.objects.all().delete()
+
+    w1 = WorkflowStatus.log_event(
+        workflow_name='INCIDENT_POLLER',
+        stage='INCIDENT_DETECTED',
+        status='SUCCESS',
+        incident=inc1,
+        execution_time_ms=310,
+        payload_snapshot={"feed": "GDOT_NaviGAtor", "corridor": inc1.city_area, "gps": [33.9189, -84.2542]}
+    )
+    w2 = WorkflowStatus.log_event(
+        workflow_name='AD_CAMPAIGN_TRIGGER',
+        stage='GEO_RADIUS_CALCULATED',
+        status='SUCCESS',
+        incident=inc1,
+        execution_time_ms=180,
+        payload_snapshot={"radius_miles": inc1.target_radius_miles, "polygon_mode": "circular_radius"}
+    )
+    w3 = WorkflowStatus.log_event(
+        workflow_name='AD_CAMPAIGN_TRIGGER',
+        stage='CAMPAIGN_LIVE',
+        status='SUCCESS',
+        incident=inc1,
+        campaign=c1,
+        execution_time_ms=840,
+        payload_snapshot={"google_campaign_id": c1.external_campaign_id, "daily_budget": str(c1.budget_daily)}
+    )
+    w4 = WorkflowStatus.log_event(
+        workflow_name='FORM_LEAD_INTAKE',
+        stage='LEAD_CAPTURED',
+        status='SUCCESS',
+        incident=inc1,
+        campaign=c1,
+        form_lead=lead1,
+        execution_time_ms=210,
+        payload_snapshot={"name": lead1.full_name, "trustedform": bool(lead1.trustedform_cert_url)}
+    )
+    w5 = WorkflowStatus.log_event(
+        workflow_name='FORM_LEAD_INTAKE',
+        stage='SENT_TO_SUPPORT',
+        status='SUCCESS',
+        incident=inc1,
+        campaign=c1,
+        form_lead=lead1,
+        execution_time_ms=450,
+        payload_snapshot={"target_inbox": "support@gcrashaware.com", "channel": "SES_SMTP"}
+    )
+    w6 = WorkflowStatus.log_event(
+        workflow_name='VAPI_CALL_HANDOFF',
+        stage='LEAD_CAPTURED',
+        status='SUCCESS',
+        call_lead=call1,
+        execution_time_ms=1380,
+        payload_snapshot={"vapi_call_id": call1.vapi_call_id, "priority": call1.priority, "duration_s": call1.duration_seconds}
+    )
+    w7 = WorkflowStatus.log_event(
+        workflow_name='VAPI_CALL_HANDOFF',
+        stage='SENT_TO_SUPPORT',
+        status='SUCCESS',
+        call_lead=call1,
+        execution_time_ms=390,
+        payload_snapshot={"target_inbox": "support@gcrashaware.com", "audio_link": call1.recording_url}
+    )
+    print(f"[+] Created {WorkflowStatus.objects.count()} WorkflowStatus pipeline execution audit logs")
+
+    print("\n[SUCCESS] Seeding completed successfully! All 6 models populated.")
 
 
 if __name__ == '__main__':

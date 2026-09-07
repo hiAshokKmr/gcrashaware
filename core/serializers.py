@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Incident, IncidentMedia, GeoCampaign, FormLead, CallLead
+from .models import Incident, IncidentMedia, GeoCampaign, FormLead, CallLead, WebsiteVisitor, WorkflowStatus
 
 
 class MediaInputSerializer(serializers.Serializer):
@@ -102,3 +102,50 @@ class CallLeadSerializer(serializers.ModelSerializer):
             'sent_to_support',
             'created_at'
         ]
+
+
+class WebsiteVisitorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebsiteVisitor
+        fields = '__all__'
+        read_only_fields = ['visited_at', 'last_activity_at']
+
+
+class VisitorClickEventSerializer(serializers.Serializer):
+    """
+    Serializer to ingest click interactions and append to a visitor's clicked_elements stream.
+    """
+    element_id = serializers.CharField(required=False, allow_blank=True, default='')
+    element_tag = serializers.CharField(required=False, allow_blank=True, default='')
+    element_text = serializers.CharField(required=False, allow_blank=True, default='')
+    element_classes = serializers.CharField(required=False, allow_blank=True, default='')
+    action_type = serializers.CharField(required=False, default='CLICK')
+    page_url = serializers.URLField(required=False, allow_blank=True, default='')
+    metadata = serializers.DictField(required=False, default=dict)
+
+
+class WorkflowStatusSerializer(serializers.ModelSerializer):
+    workflow_display = serializers.CharField(source='get_workflow_name_display', read_only=True)
+    stage_display = serializers.CharField(source='get_stage_display', read_only=True)
+
+    class Meta:
+        model = WorkflowStatus
+        fields = [
+            'id',
+            'workflow_name',
+            'workflow_display',
+            'stage',
+            'stage_display',
+            'status',
+            'incident',
+            'campaign',
+            'form_lead',
+            'call_lead',
+            'execution_time_ms',
+            'error_message',
+            'payload_snapshot',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+

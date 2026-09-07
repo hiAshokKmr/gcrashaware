@@ -665,6 +665,51 @@
       }
       return cookieValue;
     }
+
+    // Automated Click Stream & Interaction Tracker for Non-Admin Visitors
+    (function() {
+      const isAdmin = {{ is_admin|yesno:"true,false" }};
+      const sessionId = "{{ session_id }}";
+      const visitorId = "{{ visitor_id }}";
+      const targetId = sessionId || visitorId;
+      if (isAdmin || !targetId) return;
+
+      document.addEventListener('click', function(e) {
+        const target = e.target.closest('button, a, input[type="submit"], [role="button"]');
+        if (!target) return;
+
+        const elementText = (target.innerText || target.value || target.getAttribute('aria-label') || '').trim().substring(0, 100);
+        const elementId = target.id || '';
+        const elementTag = target.tagName.toLowerCase();
+        const elementClasses = target.className ? String(target.className).substring(0, 100) : '';
+
+        const payload = {
+          element_id: elementId,
+          element_tag: elementTag,
+          element_text: elementText,
+          element_classes: elementClasses,
+          action_type: target.href && target.href.startsWith('tel:') ? 'CALL_PHONE_CLICK' : 'CLICK',
+          page_url: window.location.href
+        };
+
+        try {
+          if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon(`/api/v1/visitors/${targetId}/`, blob);
+          } else {
+            fetch(`/api/v1/visitors/${targetId}/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') || ''
+              },
+              body: JSON.stringify(payload)
+            }).catch(() => {});
+          }
+        } catch (err) {}
+      }, true);
+    })();
+
   </script>
 </body>
 

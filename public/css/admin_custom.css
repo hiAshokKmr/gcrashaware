@@ -1,0 +1,176 @@
+/* =========================================================================
+   100% UNIFIED TYPOGRAPHY & TEXT COLOR CODING FOR DJANGO ADMIN
+   ========================================================================= */
+
+/* --- 1. Universal Global Font Family --- */
+html, body, 
+#header, #header *,
+#nav-sidebar, #nav-sidebar *,
+#changelist, #changelist *,
+#changelist-filter, #changelist-filter *,
+#result_list, #result_list *,
+table, th, td, tr, a, span, p, h1, h2, h3, h4, 
+input, select, button, label {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* --- 2. Standardized Font Size (13px), Weight (600), & Height Across EVERYTHING --- */
+#nav-sidebar th a,
+#nav-sidebar td a,
+#result_list tbody th,
+#result_list tbody th a,
+#result_list tbody td,
+#result_list tbody td a,
+#result_list tbody td span {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    text-transform: none !important;
+}
+
+/* Remove default yellow/distorting background on active model row */
+#nav-sidebar tr.current-model,
+#nav-sidebar tr.current-model th,
+#nav-sidebar tr.current-model td {
+    background: transparent !important;
+}
+
+/* --- 3. Left Sidebar: Colorize Model Name Texts ONLY --- */
+#nav-sidebar a[href*="/calllead/"] {
+    color: #7c3aed !important; /* Call leads -> Purple */
+}
+
+#nav-sidebar a[href*="/formlead/"] {
+    color: #2563eb !important; /* Form leads -> Blue */
+}
+
+#nav-sidebar a[href*="/geocampaign/"] {
+    color: #d97706 !important; /* Geo campaigns -> Amber/Orange */
+}
+
+#nav-sidebar a[href*="/incidentmedia/"] {
+    color: #0284c7 !important; /* Incident medias -> Sky Blue */
+}
+
+#nav-sidebar a[href*="/incident/"]:not([href*="media"]) {
+    color: #dc2626 !important; /* Incidents -> Red */
+}
+
+#nav-sidebar a[href*="/websitevisitor/"] {
+    color: #0891b2 !important; /* Website visitors -> Cyan */
+}
+
+#nav-sidebar a[href*="/workflowstatus/"] {
+    color: #059669 !important; /* Workflow Statuses -> Emerald Green */
+}
+
+
+/* --- 4. Right Sidebar: Clean Filter Headings --- */
+#changelist-filter h3 {
+    margin-top: 15px !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+}
+
+#changelist-filter h3:nth-of-type(1) {
+    color: #4f46e5 !important;
+}
+
+#changelist-filter h3:nth-of-type(2) {
+    color: #059669 !important;
+}
+
+#changelist-filter h3:nth-of-type(3) {
+    color: #d97706 !important;
+}
+
+#changelist-filter h3:nth-of-type(4) {
+    color: #db2777 !important;
+}
+
+
+/* --- 5. Table Rows Text Color-Coding per Model (Except Workflow Statuses) --- */
+
+/* 1. Incidents Table */
+body.model-incident #result_list tbody th,
+body.model-incident #result_list tbody th a {
+    color: #0284c7 !important; /* Incident ID Link -> Sky Blue */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-incident #result_list tbody td,
+body.model-incident #result_list tbody td a:not(.changelink) {
+    color: #dc2626 !important; /* Fields -> Red */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* 2. Geo Campaigns Table */
+body.model-geocampaign #result_list tbody th,
+body.model-geocampaign #result_list tbody th a {
+    color: #4f46e5 !important; /* Campaign ID Link -> Indigo */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-geocampaign #result_list tbody td,
+body.model-geocampaign #result_list tbody td a:not(.changelink) {
+    color: #d97706 !important; /* Fields -> Amber/Orange */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* 3. Form Leads Table */
+body.model-formlead #result_list tbody th,
+body.model-formlead #result_list tbody th a {
+    color: #7c3aed !important; /* Lead ID Link -> Purple */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-formlead #result_list tbody td,
+body.model-formlead #result_list tbody td a:not(.changelink) {
+    color: #2563eb !important; /* Fields -> Royal Blue */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* 4. Call Leads Table */
+body.model-calllead #result_list tbody th,
+body.model-calllead #result_list tbody th a {
+    color: #0284c7 !important; /* Vapi Call ID Link -> Ocean Blue */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-calllead #result_list tbody td,
+body.model-calllead #result_list tbody td a:not(.changelink) {
+    color: #7c3aed !important; /* Fields -> Purple */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* 5. Incident Media Table */
+body.model-incidentmedia #result_list tbody th,
+body.model-incidentmedia #result_list tbody th a {
+    color: #4f46e5 !important; /* Media ID Link -> Indigo */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-incidentmedia #result_list tbody td,
+body.model-incidentmedia #result_list tbody td a:not(.changelink) {
+    color: #0284c7 !important; /* Fields -> Sky Blue */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+
+/* 6. Website Visitors Table */
+body.model-websitevisitor #result_list tbody th,
+body.model-websitevisitor #result_list tbody th a {
+    color: #7c3aed !important; /* Visitor ID Link -> Purple */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
+body.model-websitevisitor #result_list tbody td,
+body.model-websitevisitor #result_list tbody td a:not(.changelink) {
+    color: #0891b2 !important; /* Fields -> Cyan */
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}

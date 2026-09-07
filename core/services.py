@@ -206,3 +206,120 @@ def dispatch_n8n_incident_webhook(incident_instance):
     except requests.RequestException as exc:
         logger.warning(f"n8n webhook request failed for incident {incident_instance.incident_id}: {str(exc)}")
         return False
+
+
+def get_client_ip(request):
+    """
+    Extracts client IP address safely considering reverse proxies (Vercel, Cloudflare, Nginx).
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR')
+    return ip or '127.0.0.1'
+
+
+def parse_user_agent_details(user_agent_str):
+    """
+    Extracts device type, OS, and browser from a User-Agent string without heavy dependencies.
+    """
+    if not user_agent_str:
+        return {'device_type': 'UNKNOWN', 'browser': 'Unknown', 'os': 'Unknown'}
+
+    ua_lower = user_agent_str.lower()
+
+    # Device type
+    if any(bot in ua_lower for bot in ['bot', 'crawler', 'spider', 'slurp', 'mediapartners', 'googlebot']):
+        device_type = 'BOT'
+    elif any(tab in ua_lower for tab in ['ipad', 'tablet', 'kindle', 'playbook', 'silk']):
+        device_type = 'TABLET'
+    elif any(mob in ua_lower for mob in ['mobile', 'iphone', 'android', 'phone', 'ipod']):
+        device_type = 'MOBILE'
+    else:
+        device_type = 'DESKTOP'
+
+    # Operating System
+    if 'windows nt 10.0' in ua_lower or 'windows nt 11.0' in ua_lower:
+        os_name = 'Windows 10/11'
+    elif 'windows' in ua_lower:
+        os_name = 'Windows'
+    elif 'iphone' in ua_lower or 'ipad' in ua_lower:
+        os_name = 'iOS'
+    elif 'macintosh' in ua_lower or 'mac os x' in ua_lower:
+        os_name = 'macOS'
+    elif 'android' in ua_lower:
+        os_name = 'Android'
+    elif 'linux' in ua_lower:
+        os_name = 'Linux'
+    else:
+        os_name = 'Other'
+
+    # Browser
+    if 'edg/' in ua_lower or 'edge/' in ua_lower:
+        browser_name = 'Microsoft Edge'
+    elif 'chrome/' in ua_lower and 'safari/' in ua_lower and 'edg/' not in ua_lower:
+        browser_name = 'Google Chrome'
+    elif 'safari/' in ua_lower and 'chrome/' not in ua_lower:
+        browser_name = 'Apple Safari'
+    elif 'firefox/' in ua_lower:
+        browser_name = 'Mozilla Firefox'
+    elif 'opera/' in ua_lower or 'opr/' in ua_lower:
+        browser_name = 'Opera'
+    else:
+        browser_name = 'Other'
+
+    return {
+        'device_type': device_type,
+        'browser': browser_name,
+        'os': os_name
+    }
+
+
+def fetch_ip_geolocation(ip_address):
+    """
+    Performs lightweight IP geolocation lookup with graceful fallback for local/private IPs.
+    """
+    if not ip_address or ip_address in ['127.0.0.1', 'localhost', '::1'] or ip_address.startswith(('192.168.', '10.', '172.')):
+        # Default local/dev mock location (Atlanta, GA corridor)
+        return {
+            'country': 'United States',
+            'region_state': 'Georgia',
+            'city': 'Atlanta',
+            'postal_code': '30303',
+            'latitude': 33.7490,
+            'longitude': -84.3880,
+            'timezone': 'America/New_York',
+            'isp': 'Local Development / Test'
+        }
+
+    try:
+        url = f"http://ip-api.com/json/{ip_address}?fields=status,country,regionName,city,zip,lat,lon,timezone,isp"
+        resp = requests.get(url, timeout=3)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('status') == 'success':
+                return {
+                    'country': data.get('country', ''),
+                    'region_state': data.get('regionName', ''),
+                    'city': data.get('city', ''),
+                    'postal_code': data.get('zip', ''),
+                    'latitude': data.get('lat'),
+                    'longitude': data.get('lon'),
+                    'timezone': data.get('timezone', ''),
+                    'isp': data.get('isp', '')
+                }
+    except Exception as exc:
+        logger.warning(f"IP geolocation lookup failed for {ip_address}: {exc}")
+
+    return {
+        'country': '',
+        'region_state': '',
+        'city': '',
+        'postal_code': '',
+        'latitude': None,
+        'longitude': None,
+        'timezone': '',
+        'isp': ''
+    }
+
