@@ -87,10 +87,10 @@ DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite')
 #         }
 #     }
 
-if os.environ.get("STORAGE_DATABASE_URL"):
+if os.environ.get("PRODUCTION_DB_URL"):
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.environ.get("STORAGE_DATABASE_URL"),
+            default=os.environ.get("PRODUCTION_DB_URL"),
             conn_max_age=600,
             ssl_require=True
         )
